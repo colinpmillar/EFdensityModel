@@ -1,13 +1,13 @@
 ---
-title: "Initial_model_ideas"
+title: "Initial model ideas"
 author: "Colin Millar"
-date: "16 September 2015"
-output: pdf_document
+date: "`r Sys.Date()`"
+output: 
+  pdf_document: 
+    keep_tex: no
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r}
 cars <- list(x = 1:10, y = 1:10)
@@ -19,4 +19,15 @@ You can also embed plots, for example:
 plot(cars)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Capture probability model
+
+The capture probability model is based on the framework developed by Huggins and Yip (1997). Let $n_{ijk}$ be the number of fish of life-stage $j$ caught on pass $k$ in sample $i$, $i = 1,\ldots, N$, $j = 1, 2$ (fry, parr respectively), $k = 1, 2, 3$. Further, let $p_{ijk}$ be the corresponding capture probability, assumed by necessity to be common across individuals within samples, life stages and passes because length information is not available. The log-likelihood of the data is then (subject to an additive constant):
+
+$$L_{ij} = \prod{ij} \frac{p_{ij1}^{n_{ij1}} \left(q_{ij1} p_{ij2}\right)^{n_{ij2}} \left(q_{ij1}q_{ij2}p_{ij3}\right)^{n_{ij3}}} {\left(p_{ij1} + q_{ij1}p_{ij2} + q_{ij1}q_{ij2}p_{ij3}\right)^{n_{ij.}}}$$
+
+where $q_{ijk} = 1 - p_{ijk}$ and $n_{ij.} = n_{ij1} + n_{ij2} + n_{ij3}$. This model is over-parameterised so constraints are imposed by assuming that the capture probabilities are a linear logistic function of explanatory variables $x_l$, $l = 1, \ldots, M$. That is:
+
+$$\text{logit} p_{ijk} = \beta_0 + \sum_{l} \beta_l x_{ijkl}$$
+
+where $x_{ijkl}$ is the value of $x_l$ for sample $i$, life-stage $j$ and pass $k$, and $\beta_0$ and $\beta_l$, $l = 1, \ldots, M$, are parameters to be estimated. Although the use of linear logistic models may appear limiting, the formulation above can incorporate categorical variables, interactions, smoothing splines with fixed degrees of freedom and spatial models (Yee and Hastie, 2003). 
+
