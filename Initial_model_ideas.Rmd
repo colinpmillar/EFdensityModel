@@ -8,18 +8,9 @@ output:
 ---
 
 
-
-```{r}
-cars <- list(x = 1:10, y = 1:10)
-```
-
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
-plot(cars)
-```
-
 # Capture probability model
+
+## A conditional likelihood for capture probability
 
 The capture probability model is based on the framework developed by Huggins and Yip (1997). Let $n_{ijk}$ be the number of fish of life-stage $j$ caught on pass $k$ in sample $i$, $i = 1,\ldots, N$, $j = 1, 2$ (fry, parr respectively), $k = 1, 2, 3$. Further, let $p_{ijk}$ be the corresponding capture probability, assumed by necessity to be common across individuals within samples, life stages and passes because length information is not available. The log-likelihood of the data is then (subject to an additive constant):
 
@@ -27,7 +18,61 @@ $$L_{ij} = \prod{ij} \frac{p_{ij1}^{n_{ij1}} \left(q_{ij1} p_{ij2}\right)^{n_{ij
 
 where $q_{ijk} = 1 - p_{ijk}$ and $n_{ij.} = n_{ij1} + n_{ij2} + n_{ij3}$. This model is over-parameterised so constraints are imposed by assuming that the capture probabilities are a linear logistic function of explanatory variables $x_l$, $l = 1, \ldots, M$. That is:
 
-$$\text{logit} p_{ijk} = \beta_0 + \sum_{l} \beta_l x_{ijkl}$$
+$$\text{logit}\; p_{ijk} = \beta_0 + \sum_{l} \beta_l x_{ijkl}$$
 
 where $x_{ijkl}$ is the value of $x_l$ for sample $i$, life-stage $j$ and pass $k$, and $\beta_0$ and $\beta_l$, $l = 1, \ldots, M$, are parameters to be estimated. Although the use of linear logistic models may appear limiting, the formulation above can incorporate categorical variables, interactions, smoothing splines with fixed degrees of freedom and spatial models (Yee and Hastie, 2003). 
+
+## Estimating density
+
+The total numbers present can be estimated using a design based estimator (the Horwitch Thompson estimator) given by
+
+$$\hat{A}_{ij} = \frac{n_{ij}}{\hat{p}_{ij}}$$
+
+where $n_{ij}$ is the total number of fish caught in sample $i$ of lifestage $j$ and $\hat{p}_{ij}$ is the estimate of overall probability of capture given by
+
+$$\hat{p}_{ij} = 1 - \prod_k \hat{q}_{ijk}$$
+
+# Density model
+
+The Horwitz Thompson estimator is equivalent in expectation to a GLM for count data where the observed counts are the total fish caught ($n_{ij}$) of each life-stage in each sample and where the log of the overall capture probability ($\log p_{ij}$) enters as an offset. This permits models devloped for count data to be considered for modelling electrofishing data, such as Poisson or negative binomial generalised additive models (GAMs).  Assuming a log link function, these models can be summarised
+
+$$\log E[n_{ij}] = \log A_{ij} + \log \hat{p}_{ij}$$ 
+
+and if it is assumed that $\hat{p}_{ij}$ is known without error, then model fitting and inference can proceed along standard lines.  However, since $p_{ij}$ is itself an estimate then the inherent error must be carried through the density estimation process in order to make appropriate inferences through significance tests and confidence intervals. This is because with error in $p$, $n$ is not Poisson distributed anymore.
+
+## Propagating uncertainty
+
+The expectation and variance of $n_{ij}$ when considered as the total count arising from an electrofishing experiment where the abundance was $A_{ij}$ will depend on the expectation and variance of $p_{ij}$.
+
+The variance of n can be written using the conditional distributional assumtions on $n$.  As an example, consider 
+
+$$n|\theta \sim \text{Poisson}(A(\theta)p(\theta))$$
+
+where $\theta$ is the vector of model parameters underlying the estimate of $p$ \emph{and} the vector of parameters underlying the model for $A$. Then $\text{Var}(n|\theta) = A(\theta)p(\theta)$ and $\text{E}[n|\theta] = A(\theta)p(\theta)$.  The total variance of $n$ is given by
+
+$$\text{Var}(n|\theta) = \text{E}_\theta[\text{Var}(n|p(\theta))] + \text{Var}_\theta(\text{E}[n|p(\theta)])$$
+
+which plugging in gives
+
+$$\text{Var}(n|\theta) = \text{E}_\theta[A(\theta)p(\theta)] + \text{Var}_\theta(A(\theta)p(\theta))$$
+
+## thoughts
+
+This does hide the fact the the model parameter estimates in the A model are dependent on the p model.  A possible simulation scheme for $\theta$ is one where the p model parameters are simulated, p calculated, then the A model fitted, then the A model parameters can be simulated. This two stage simulation scheme would give draws from an approximate joint distribution of $\theta$
+
+It would then be possible to use the simulations of $\theta$ to derive the confidence intervals for predictions of density, and conduct tests of significance of parameters.
+
+The quickest way would be to conduct model selection conditional on p, then fix on this model and propagate the error.  Finally we could check the least significanct terms and drop them if the are non-significant after accounting for the extra variability.
+
+Standard model selection will be difficult unconditional on p as there is no likelihood.  One possibility is to approximate the likelihood by an overdispersed poisson for the purposes of using a scaled BIC... however, this would presumabley need to be sense checked.
+
+It might be easier if we conducted model selection conditional on p at each simulation... this could be managable if we used an efficient model selection procedure such as the "select=TRUE" option in gam, which operates like a ridge regression penalty.  The problem then would be combining accross all the models resulting from the 1000 or so simulations.  THis model averaging also add complications to jobs like making predictions at new sites etc.
+
+If we go down a model averaging approach for the density model, it opens questions for why the capture probability model is not done similarly.  The quick answer is that the capture probability model selection procedure does not lend itself to this because 1) we dont have a foolproof bootstrap procedure for the raw data, and 2) the model selection procedure is slow and so the whole process would take too long.
+
+
+
+
+
+
 
