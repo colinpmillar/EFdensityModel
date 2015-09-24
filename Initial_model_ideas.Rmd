@@ -56,7 +56,7 @@ which plugging in gives
 
 $$\text{Var}(n|\theta) = \text{E}_\theta[A(\theta)p(\theta)] + \text{Var}_\theta(A(\theta)p(\theta))$$
 
-## thoughts
+### thoughts (thinking out loud)
 
 This does hide the fact the the model parameter estimates in the A model are dependent on the p model.  A possible simulation scheme for $\theta$ is one where the p model parameters are simulated, p calculated, then the A model fitted, then the A model parameters can be simulated. This two stage simulation scheme would give draws from an approximate joint distribution of $\theta$
 
@@ -69,6 +69,36 @@ Standard model selection will be difficult unconditional on p as there is no lik
 It might be easier if we conducted model selection conditional on p at each simulation... this could be managable if we used an efficient model selection procedure such as the "select=TRUE" option in gam, which operates like a ridge regression penalty.  The problem then would be combining accross all the models resulting from the 1000 or so simulations.  THis model averaging also add complications to jobs like making predictions at new sites etc.
 
 If we go down a model averaging approach for the density model, it opens questions for why the capture probability model is not done similarly.  The quick answer is that the capture probability model selection procedure does not lend itself to this because 1) we dont have a foolproof bootstrap procedure for the raw data, and 2) the model selection procedure is slow and so the whole process would take too long.
+
+## A simple simulation scheme
+
+### A first proposition to simulate appropriate uncertainty in the parameter estimates of a electrofishing density model
+
+The probabilit mass function for counts in an electrifishing sample can be related to the capture probabilities and the underlying abundance through the following density function
+
+$$f(n_1, n_2, n_3 \;|\; p_1, p_{2+}, A) = \text{Moran}(n_1, n_2, n_3 \;|\; p_1, p_{2+}, A)$$
+
+This can can be split into two bits by augmenting the distribution by the variable $T = n_1 + n_2 + n_3$ as follows
+
+$$f(n_1, n_2, n_3 \;|\; p_1, p_{2+}, A) = \text{Huggins}(n_1, n_2, n_3 \;|\; p_1, p_{2+}, T) \; \text{Poisson}(T \;|\; p_1, p_{2+}, A)$$
+
+This is the model for the counts of fish in a simplified electrofishing sample with 3 passes and one species and one lifestage per sample, where the capture probability is different between the 1st and 2nd passes but the same for passes 2 and 3.  This is a multivariate distribution based on 3 parameters.
+
+The moran likelihood / distribution is a non-standard likehood so to model capture probability and density directly will require a reasonably complex tailored analysis.  (Though thinking about it now... why could we not adapt the GAMLSS approach... they use weird distributions and have models for each parameter...)
+
+Spliting the likelihood into two bits provides scope to use standard tools which should simplify model fitting and selection.  For example, Huggins and Yip and Huggins and Hwang show that the first component of the split likelihood can be used to find good models for capture probability. It is justifiable to argue that model selection for capture probability can be separated from model selection for density even though the density model selection will be correlated with capture probability model selection.  Consider the posterior distribution of the model parameters and the posterior distributions using the two stage procedure
+
+$$f(n_1, n_2, n_3 \;|\; p_1, p_{2+}, T) = \text{Huggins}(n_1, n_2, n_3 \;|\; p_1, p_{2+}, T)$$
+
+$$f(T \;|\; p_1, p_{2+}, A) = \text{Poisson}(T \;|\; A; p_1, p_{2+})$$
+
+* propose a model for capture probability
+* estimate $(p_1, p_{2+})$ using the Huggins likelihood.
+* simulate from the assymptotic distribution of $(p_1, p_{2+})$ assuming multivariate normality on the logistic scale with variance taken from the inverse hessian of the fit.
+* fit a large GAM model with poisson errors, allowing for automatic model selection via ridge regression.
+* 
+
+
 
 
 

@@ -1,0 +1,273 @@
+\documentclass{article}
+
+
+\RequirePackage{geometry}
+\geometry{verbose,tmargin=35mm,bmargin=30mm,lmargin=35mm,rmargin=35mm}
+
+
+% ******************************* Line Spacing *********************************
+
+%\renewcommand\baselinestretch{1.2}
+
+% Choose linespacing as appropriate. Default is one-half line spacing as per the
+% University guidelines
+
+% \doublespacing
+% \onehalfspacing
+% \singlespacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}
+
+
+% ************************* Algorithms and Pseudocode **************************
+
+\usepackage{algpseudocode}
+
+% ***************************** Math and SI Units ******************************
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{siunitx} % use this package module for SI units
+\usepackage{bm}           % load after all math to give access to bold math
+
+% Distributions
+\DeclareMathOperator{\GammaD}{Gamma}
+\DeclareMathOperator{\NormD}{N}
+\DeclareMathOperator{\BetaD}{Beta}
+\DeclareMathOperator{\tD}{t}
+\DeclareMathOperator{\BinomD}{Bin}
+\DeclareMathOperator{\PoissonD}{Pois}
+\DeclareMathOperator{\NegbinD}{NegBin}
+
+% Functions
+\DeclareMathOperator{\Beta}{B}
+
+% Operators
+\DeclareMathOperator{\E}{E}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\CV}{CV}
+
+% likelihood functions
+\newcommand{\prob}[1]{\mathrm{Pr}\left( #1 \right)}
+\newcommand{\Lik}[1]{\mathrm{L}\left( #1 \right)}
+\newcommand{\logLik}[1]{l\left( #1 \right)}
+
+
+
+
+% ******************************* Meta data ************************************
+
+\title{Initial model ideas}
+\author{Colin Millar}
+\date{\Sexpr{Sys.Date()}}
+
+\begin{document}
+
+\maketitle
+
+
+
+% ******************************************************************************
+% ******************************************************************************
+% ******************************************************************************
+% ******************************************************************************
+
+\section{Capture probability model}
+
+\subsection{A conditional likelihood for capture probability}
+
+The capture probability model is based on the framework developed by Huggins and Yip (1997). Let $n_{ijk}$ be the number of fish of life-stage $j$ caught on pass $k$ in sample $i$, $i = 1,\ldots, N$, $j = 1, 2$ (fry, parr respectively), $k = 1, 2, 3$. Further, let $p_{ijk}$ be the corresponding capture probability, assumed by necessity to be common across individuals within samples, life stages and passes because length information is not available. The log-likelihood of the data is then (subject to an additive constant):
+
+\begin{equation}
+  L_{ij} = \prod{ij} \frac{p_{ij1}^{n_{ij1}}
+                           \left(q_{ij1} p_{ij2}\right)^{n_{ij2}}
+                           \left(q_{ij1}q_{ij2}p_{ij3}\right)^{n_{ij3}}}
+      {\left(p_{ij1} + q_{ij1}p_{ij2} + q_{ij1}q_{ij2}p_{ij3}\right)^{n_{ij.}}}
+\end{equation}
+
+where $q_{ijk} = 1 - p_{ijk}$ and $n_{ij.} = n_{ij1} + n_{ij2} + n_{ij3}$. This model is over-parameterised so constraints are imposed by assuming that the capture probabilities are a linear logistic function of explanatory variables $x_l$, $l = 1, \ldots, M$. That is:
+
+\begin{equation}
+  \text{logit}\; p_{ijk} = \beta_0 + \sum_{l} \beta_l x_{ijkl}
+\end{equation}
+
+where $x_{ijkl}$ is the value of $x_l$ for sample $i$, life-stage $j$ and pass $k$, and $\beta_0$ and $\beta_l$, $l = 1, \ldots, M$, are parameters to be estimated. Although the use of linear logistic models may appear limiting, the formulation above can incorporate categorical variables, interactions, smoothing splines with fixed degrees of freedom and spatial models (Yee and Hastie, 2003).
+
+
+
+% ******************************************************************************
+% ******************************************************************************
+
+\subsection{Estimating density}
+
+The total numbers present can be estimated using a design based estimator (the Horwitch Thompson estimator) given by
+
+\begin{equation}
+  \hat{A}_{ij} = \frac{n_{ij}}{\hat{p}_{ij}}
+\end{equation}
+
+where $n_{ij}$ is the total number of fish caught in sample $i$ of lifestage $j$ and $\hat{p}_{ij}$ is the estimate of overall probability of capture given by
+
+\begin{equation}
+  \hat{p}_{ij} = 1 - \prod_k \hat{q}_{ijk}
+\end{equation}
+
+
+
+% ******************************************************************************
+% ******************************************************************************
+% ******************************************************************************
+% ******************************************************************************
+
+\section{Density model}
+
+The Horwitz Thompson estimator is equivalent in expectation to a GLM for count data where the observed counts are the total fish caught ($n_{ij}$) of each life-stage in each sample and where the log of the overall capture probability ($\log p_{ij}$) enters as an offset. This permits models devloped for count data to be considered for modelling electrofishing data, such as Poisson or negative binomial generalised additive models (GAMs).  Assuming a log link function, these models can be summarised
+
+\begin{equation}
+  \log E[n_{ij}] = \log A_{ij} + \log \hat{p}_{ij}
+\end{equation}
+
+and if it is assumed that $\hat{p}_{ij}$ is known without error, then model fitting and inference can proceed along standard lines.  However, since $p_{ij}$ is itself an estimate then the inherent error must be carried through the density estimation process in order to make appropriate inferences through significance tests and confidence intervals. This is because with error in $p$, $n$ is not Poisson distributed anymore.
+
+\subsection{Propagating uncertainty}
+
+The expectation and variance of $n_{ij}$ when considered as the total count arising from an electrofishing experiment where the abundance was $A_{ij}$ will depend on the expectation and variance of $p_{ij}$.
+
+The variance of n can be written using the conditional distributional assumtions on $n$.  As an example, consider
+
+\begin{equation}
+  n \;|\; \theta \sim \text{Poisson}(A(\theta)p(\theta))
+\end{equation}
+
+where $\theta$ is the vector of model parameters underlying the estimate of $p$ \emph{and} the vector of parameters underlying the model for $A$. Then $\text{Var}(n|\theta) = A(\theta)p(\theta)$ and $\text{E}[n|\theta] = A(\theta)p(\theta)$.  The total variance of $n$ is given by
+
+\begin{equation}
+  \text{Var}(n \;|\; \theta) =
+    \text{E}_\theta[\text{Var}(n \;|\; p(\theta))] +
+    \text{Var}_\theta(\text{E}[n \;|\; p(\theta)])
+\end{equation}
+
+which plugging in gives
+
+\begin{equation}
+  \text{Var}(n \;|\; \theta) =
+    \text{E}_\theta[A(\theta)p(\theta)] +
+    \text{Var}_\theta(A(\theta)p(\theta))
+\end{equation}
+
+
+
+% ******************************************************************************
+% ******************************************************************************
+
+\subsubsection{thoughts (thinking out loud)}
+
+This does hide the fact the the model parameter estimates in the A model are dependent on the p model.  A possible simulation scheme for $\theta$ is one where the p model parameters are simulated, p calculated, then the A model fitted, then the A model parameters can be simulated. This two stage simulation scheme would give draws from an approximate joint distribution of $\theta$
+
+It would then be possible to use the simulations of $\theta$ to derive the confidence intervals for predictions of density, and conduct tests of significance of parameters.
+
+The quickest way would be to conduct model selection conditional on p, then fix on this model and propagate the error.  Finally we could check the least significanct terms and drop them if the are non-significant after accounting for the extra variability.
+
+Standard model selection will be difficult unconditional on p as there is no likelihood.  One possibility is to approximate the likelihood by an overdispersed poisson for the purposes of using a scaled BIC... however, this would presumabley need to be sense checked.
+
+It might be easier if we conducted model selection conditional on p at each simulation... this could be managable if we used an efficient model selection procedure such as the "select=TRUE" option in gam, which operates like a ridge regression penalty.  The problem then would be combining accross all the models resulting from the 1000 or so simulations.  THis model averaging also add complications to jobs like making predictions at new sites etc.
+
+If we go down a model averaging approach for the density model, it opens questions for why the capture probability model is not done similarly.  The quick answer is that the capture probability model selection procedure does not lend itself to this because 1) we dont have a foolproof bootstrap procedure for the raw data, and 2) the model selection procedure is slow and so the whole process would take too long.
+
+
+
+% ******************************************************************************
+% ******************************************************************************
+
+\subsection{A simple simulation scheme}
+
+\subsubsection{A first proposition to simulate appropriate uncertainty in the parameter estimates of a electrofishing density model}
+
+The probabilit mass function for counts in an electrifishing sample can be related to the capture probabilities and the underlying abundance through the following density function
+
+\begin{align*}
+  f(\bm{n} \;|\; p_1, p_{2+}, A)
+    &= \text{Moran}(n_1, n_2, n_3 \;|\; p_1, p_{2+}, A) \\
+    &= \text{Bin}(n_1 | A, p_1) \;
+       \text{Bin}(n_2 | A - n_1, p_{2+}) \;
+       \text{Bin}(n_3 | A - n_1 - n_2, p_{2+})
+\end{align*}
+
+where $\bm{n} = (n_1, n_2, n_3)$. This can can be split into two bits by augmenting the distribution by the variable $T = n_1 + n_2 + n_3$ as follows
+
+\begin{align*}
+  f(\bm{n} \;|\; p_1, p_{2+}, A) =
+    \text{Huggins}(\bm{n} \;|\; p_1, p_{2+}, T) \;
+    \text{Poisson}(T \;|\; p_1, p_{2+}, A)
+\end{align*}
+
+This is the model for the counts of fish in a simplified electrofishing sample with 3 passes and one species and one lifestage per sample, where the capture probability is different between the 1st and 2nd passes but the same for passes 2 and 3.  This is a multivariate distribution based on 3 parameters.
+
+The moran likelihood / distribution is a non-standard likehood so to model capture probability and density directly will require a reasonably complex tailored analysis.  (Though thinking about it now... why could we not adapt the GAMLSS approach... they use weird distributions and have models for each parameter...)
+
+Spliting the likelihood into two bits provides scope to use standard tools which should simplify model fitting and selection.  For example, Huggins and Yip and Huggins and Hwang show that the first component of the split likelihood can be used to find good models for capture probability. It is justifiable to argue that model selection for capture probability can be separated from model selection for density even though the density model selection will be correlated with capture probability model selection.  Consider the posterior distribution of the model parameters and the posterior distributions using the two stage procedure
+
+\begin{equation}
+  f(\bm{n} \;|\; p_1, p_{2+}, T) = \text{Huggins}(\bm{n} \;|\; p_1, p_{2+}, T)
+\end{equation}
+
+\begin{equation}
+  f(T \;|\; p_1, p_{2+}, A) = \text{Poisson}(T \;|\; A; p_1, p_{2+})
+\end{equation}
+
+\begin{enumerate}
+\item propose a model for capture probability
+\item estimate $(p_1, p_{2+})$ using the Huggins likelihood.
+\item simulate from the assymptotic distribution of $(p_1, p_{2+})$ assuming multivariate normality on the logistic scale with variance taken from the inverse hessian of the fit.
+\item fit a large GAM model with poisson errors, allowing for automatic model selection via ridge regression.
+\end{enumerate}
+
+
+
+% ******************************************************************************
+% ******************************************************************************
+% ******************************************************************************
+% ******************************************************************************
+
+\section{Distributional (Bayesian) view (?)}
+
+
+Lets start with the a simple electrofishing model (i.e. the Moran distribution with a different capture probability per pass).  This can be denoted
+
+\begin{align}
+  (\bm{n}|\bm{p},A) &= \text{Moran}(\bm{n} \;|\; \bm{p}, A) \\
+          &= \text{Bin}(n_1 | A, p_1) \;
+             \text{Bin}(n_2 | A - n_1, p_2) \;
+             \text{Bin}(n_3 | A - n_1 - n_2, p_3) \\
+          &= \frac{A!}{(A-T)! \prod_i n_i!} p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{A-n_1} (1-p_2)^{A-n_1-n_2} (1-p_3)^{A-n_1-n_2-n_3}
+\end{align}
+
+The Huggins distribution is $(\bm{n}|T,\bm{p})$ where $T=\sum_i n_i$.  There are a range of ways to arrive at this distribution, for example, one is
+
+\begin{align}
+  \frac{(T|n,p,A)(n|p,A)}{(T|p,A)} = \frac{(T,n|p,A)}{(T|p,A)} = (n | T, p, A)
+\end{align}
+
+\begin{align}
+  f(n|p,A) &= \frac{f(n,T|p,A)}{f(T|n,p,A)}
+\end{align}
+where
+\begin{align}
+  f(T|n,p,A) = \begin{cases} 1 &\mbox{if } T = \sum n \\
+                             0 &\mbox{if } \text{otherwise} \end{cases}
+\end{align}
+Which implies, i think that,
+\begin{align}
+  f(n|p,A) \equiv f(n,T|p,A)
+\end{align}
+is true as long as $T = \sum n$ is true, otherwise the expression is not defined.  This allows us to connect the Moran likelihood to the decomposed likelihood
+\begin{align}
+  f(n,T|p,A) &= f(T|p,A)f(n|T,p,A) \\
+             &= f(T|p,A)f(n|T,p)
+\end{align}
+
+These likelihoods correspond to a (probability) model for the total catch followed by a model for the individual catches.
+
+
+\end{document}

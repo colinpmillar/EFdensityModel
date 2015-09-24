@@ -4,3 +4,9 @@
 Initial_model_ideas.pdf
 Initial_model_ideas.tex
 Initial_model_ideas_files
+*.gz
+*.aux
+*.log
+2ndDraftNotes.pdf
+2ndDraftNotes.tex
+2ndDraftNotes-concordance.tex

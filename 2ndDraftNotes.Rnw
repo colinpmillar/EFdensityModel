@@ -1,0 +1,218 @@
+\documentclass{article}
+
+\RequirePackage{geometry}
+\geometry{verbose,tmargin=35mm,bmargin=30mm,lmargin=35mm,rmargin=35mm}
+
+
+% ******************************* Line Spacing *********************************
+
+%\renewcommand\baselinestretch{1.2}
+
+% Choose linespacing as appropriate. Default is one-half line spacing as per the
+% University guidelines
+
+% \doublespacing
+% \onehalfspacing
+% \singlespacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}
+
+
+% ************************* Algorithms and Pseudocode **************************
+
+\usepackage{algpseudocode}
+
+% ***************************** Math and SI Units ******************************
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{siunitx} % use this package module for SI units
+\usepackage{bm}           % load after all math to give access to bold math
+
+% Distributions
+\DeclareMathOperator{\GammaD}{Gamma}
+\DeclareMathOperator{\NormD}{N}
+\DeclareMathOperator{\BetaD}{Beta}
+\DeclareMathOperator{\tD}{t}
+\DeclareMathOperator{\BinomD}{Bin}
+\DeclareMathOperator{\PoissonD}{Pois}
+\DeclareMathOperator{\NegbinD}{NegBin}
+
+% Functions
+\DeclareMathOperator{\Beta}{B}
+
+% Operators
+\DeclareMathOperator{\E}{E}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\CV}{CV}
+
+% likelihood functions
+\newcommand{\prob}[1]{\mathrm{Pr}\left( #1 \right)}
+\newcommand{\Lik}[1]{\mathrm{L}\left( #1 \right)}
+\newcommand{\logLik}[1]{l\left( #1 \right)}
+
+
+
+
+% ******************************* Meta data ************************************
+
+\title{Statistical aspects of Electrofishing}
+\author{Colin Millar}
+\date{\Sexpr{Sys.Date()}}
+
+\begin{document}
+
+\maketitle
+
+
+\section{Distributional (Bayesian?) view}
+
+
+Lets start with the a simple electrofishing model (i.e. the Moran distribution with a different capture probability per pass).  This can be written
+
+\begin{align}
+  (\bm{n}|\bm{p},A) &= \text{Moran}(\bm{n} \;|\; \bm{p}, A) \\
+          &= \text{Bin}(n_1 | A, p_1) \;
+             \text{Bin}(n_2 | A - n_1, p_2) \;
+             \text{Bin}(n_3 | A - n_1 - n_2, p_3) \\
+          &= \frac{A!}{(A-T)! \prod_i n_i!} p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{A-n_1} (1-p_2)^{A-n_1-n_2} (1-p_3)^{A-n_1-n_2-n_3}
+\end{align}
+
+The Huggins distribution is $(\bm{n}|T,\bm{p})$ where $T=\sum_i n_i$.  There are a number of ways to arrive at this distribution, but here I directly manipulate probability distributions.  In full $(\bm{n}|T,\bm{p})$ is
+
+\begin{align}
+  \int \frac{(T|n,p,A)(n|p,A)}{(T|p,A)}(A) dA
+\end{align}
+
+because:
+
+\begin{align}
+  \int \frac{(T|n,p,A)(n|p,A)}{(T|p,A)}(A) dA
+    &= \int \frac{(T,n|p,A)}{(T|p,A)}(A)dA \\
+    & = \int (n | T, p, A)(A) dA \\
+    &= \int (n, A | T, p)dA \\
+    &= (n | T, p)
+\end{align}
+
+The step involving integrating out A can be simplified because after conditioning on $T$, $n|p$ is independent of $A$, that is
+
+\begin{align}
+  (n|T,p,A) = (n|T,p)
+\end{align}
+
+So a simplified way to arrive at the Huggins distribution is
+
+\begin{align}
+  \frac{(T|n,p,A)(n|p,A)}{(T|p,A)}
+    &= \frac{(T,n|p,A)}{(T|p,A)} \\
+    & = (n | T, p, A) = (n | T, p)
+\end{align}
+
+The distributions of interest here can be derived via some logic.  The first is easy, $(n|p,A)$ is the Moran distribution.  Next we have $(T|p,A)$, the distribution of the total count given the capture probabilities and the abundance.This can be derived from the definition of the Moran likelihood to be binomial with probability $1 - (1-p_1)(1-p_2)(1-p_3)$, hence $(T|p,A)$ is
+
+\begin{align}
+  \frac{A!}{(A-T)!T!} (1 - (1-p_1)(1-p_2)(1-p_3))^{T} ((1-p_1)(1-p_2)(1-p_3))^{A-T}
+\end{align}
+
+Finally the rather odd distribution $(T|n,p,A)$, which logically does not depend on either $p$ or $A$ so can be writted $(T|n)$ is a degenerate distribution
+
+\begin{align}
+  f(T|n) = \begin{cases} 1 &\mbox{if } T = \sum n \\
+                             0 &\mbox{if } \text{otherwise}
+                \end{cases}
+\end{align}
+
+With these three density functions it is now possible to derive the Huggins distribution, for brevity we assume that $T=\sum_i n_i$
+
+\begin{align}
+  \frac{(T|n,p,A)(n|p,A)}{(T|p,A)}
+    &= \frac{\frac{A!}{(A-T)! \prod_i n_i!} p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{A-n_1} (1-p_2)^{A-n_1-n_2} (1-p_3)^{A-n_1-n_2-n_3}}{\frac{A!}{(A-T)!T!} (1 - (1-p_1)(1-p_2)(1-p_3))^{T} ((1-p_1)(1-p_2)(1-p_3))^{A-T}}
+\end{align}
+
+This reduces to (recall $T = n_1 + n_2 + n_3$)
+
+\begin{align}
+  \frac{T!}{\prod_i n_i!}
+  \frac{p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{n_2 + n_3} (1-p_2)^{n_3}}
+       {(1 - (1-p_1)(1-p_2)(1-p_3))^{T}}
+\end{align}
+
+which is precisely the distribution arrived at by Huggins and Yip (1997).  The leading term gives the number of ways of permuting each fish so that the same numbers of fish are caught on each pass.
+
+
+The point I am trying to make is that, in this simple case there is a triangle of distributions,
+
+\begin{align}
+  \text{Moran} = \text{Huggins} \times \text{Binomial}
+\end{align}
+
+\section{Allowing for overdispersion}
+
+Because we have two parameters in the Moran distribution, each corresponding to a different process (capture probability and abundance), there are also to kinds of overdispersion. And because we can decompose the Moran distribution into two parts, each dealing with a different process we can associate overdispersion with each process by modifying the component distributions.  In the catch probability paper we used quasi likelihood approaches to deal with overdispersion with respect to capture probability in the Huggins distribution.  This implied that we have an overdispersed Moran distribution of the Carle and Strubbe kind (Carle and strub allow $p$ to vary randomly between site according to a gamma distribution).
+
+The second kind of overdispersion is with respect to abundance, and site to site variability in abundance can be allowed by using a more variable distribution than the Binomial.  This can be achieved by using a Poisson (as in Royle), a Negative Binomial (as in Wyatt, SNIFFER etc.) or a zero inflated poisson (find that ref).
+
+
+\section{Modelling considerations}
+
+\subsection{capture probability}
+
+Let $n_{ijk}$ be the number of fish of life-stage $j$ caught on pass $k$ in sample $i$, $i = 1,\ldots, N$, $j = 1, 2$ (fry, parr respectively), $k = 1, 2, 3$. Further, let $p_{ijk}$ be the corresponding capture probability, assumed by necessity to be common across individuals within samples, life stages and passes because length information is not available. The log-likelihood of the data is then (subject to an additive constant):
+
+\begin{equation}
+  L_{ij}(\bm{n}|\bm{p}, \bm{T}) = \prod{ij} \frac{p_{ij1}^{n_{ij1}}
+                           \left(q_{ij1} p_{ij2}\right)^{n_{ij2}}
+                           \left(q_{ij1}q_{ij2}p_{ij3}\right)^{n_{ij3}}}
+      {\left(p_{ij1} + q_{ij1}p_{ij2} + q_{ij1}q_{ij2}p_{ij3}\right)^{T_{ij}}}
+\end{equation}
+
+where $q_{ijk} = 1 - p_{ijk}$ and $T_{ij} = n_{ij1} + n_{ij2} + n_{ij3}$. This model is over-parameterised so constraints are imposed by assuming that the capture probabilities are a linear logistic function of explanatory variables $x_l$, $l = 1, \ldots, M$. That is:
+
+\begin{equation}
+  \text{logit}\; p_{ijk} = \beta_0 + \sum_{l} \beta_l x_{ijkl}
+\end{equation}
+
+where $x_{ijkl}$ is the value of $x_l$ for sample $i$, life-stage $j$ and pass $k$, and $\beta_0$ and $\beta_l$, $l = 1, \ldots, M$, are parameters to be estimated. Although the use of linear logistic models may appear limiting, the formulation above can incorporate categorical variables, interactions, smoothing splines with fixed degrees of freedom and spatial models (Yee and Hastie, 2003).
+
+
+\subsection{abundance}
+
+Let $T_{ij}$ be the total number of fish of life-stage $j$ caught in sample $i$, $i = 1,\ldots, N$, $j = 1, 2$ (fry, parr respectively). Further, let $p_{ijk}$ be the corresponding capture probability specific to each pass $k = 1, 2, 3$, assumed by necessity to be common across individuals within samples, life stages and passes because length information is not available. We can explicitly model overdispersion more easily for abundance than with capture probability, because the model for abundance is simply a count distribution with an offset on the mean given by the capture probability. Consider a simple case of overdispersion where abundance varies between sites according to Poisson variation.  This results in a model for the electrofishing counts which depends on a new parameter - the underlying Poisson mean or density $\lambda$,
+
+\begin{align}
+  (n | p, \lambda)
+    &= (n | p, T) \int (n | p, A) (A | \lambda) \; dA \\
+    &= (n | p, T) (n | p, \lambda)
+\end{align}
+
+This can be extended to allow for other sources of overdispersion via shape parameters or zero inflation by adding more parameters to the abundance model.  A side note: the construction above is essentially a random effects model, if we could add random effects to the huggins distribution we would be fitting
+
+\begin{align}
+  (n | \pi, \sigma_p, \lambda)
+    &= \int (n | p, T) \int (n | p, A) (A | \lambda) \; dA \; (p | \pi, \sigma_p) \; dp \\
+    &= \int (n | p, T) (n | p, \lambda) \; (p | \pi, \sigma_p) \; dp
+\end{align}
+
+but this actually complicates the picture quite substantially in terms of approximating joint infernence for capture prob and abundance.
+
+
+A simple model for fish density is
+
+\begin{equation}
+  \text{log}\; \lambda_{ij} = \alpha_0 + \sum_{l} \alpha_l x_{ijl}
+\end{equation}
+
+where $x_{ijl}$ is the value of $x_l$ for sample $i$ and life-stage $j$, and $\beta_0$ and $\beta_l$, $l = 1, \ldots, M$, are parameters to be estimated..
+
+
+\section{Estimation of model parameters}
+
+
+For the capture probability model, see capture prob paper for parameter estimation and for methods for simulating from the distribution of the parameter estimates.
+
+For the density model, parameter estimation is slightly more complicated as it is nessisary to incorporate the uncertainty from the estimation of $\beta$ parameters.  A simulation
+
+
+
+\end{document}
