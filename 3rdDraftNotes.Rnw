@@ -1,0 +1,166 @@
+\documentclass{article}
+
+\RequirePackage{geometry}
+\geometry{verbose,tmargin=35mm,bmargin=30mm,lmargin=35mm,rmargin=35mm}
+
+
+% ******************************* Line Spacing *********************************
+
+%\renewcommand\baselinestretch{1.2}
+
+% Choose linespacing as appropriate. Default is one-half line spacing as per the
+% University guidelines
+
+% \doublespacing
+% \onehalfspacing
+% \singlespacing
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{12pt}
+
+
+% ************************* Algorithms and Pseudocode **************************
+
+
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+
+% ***************************** Math and SI Units ******************************
+
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+%\usepackage{siunitx} % use this package module for SI units
+\usepackage{bm}           % load after all math to give access to bold math
+
+% Distributions
+\DeclareMathOperator{\GammaD}{Gamma}
+\DeclareMathOperator{\NormD}{N}
+\DeclareMathOperator{\BetaD}{Beta}
+\DeclareMathOperator{\tD}{t}
+\DeclareMathOperator{\BinomD}{Bin}
+\DeclareMathOperator{\PoissonD}{Pois}
+\DeclareMathOperator{\NegbinD}{NegBin}
+
+% Functions
+\DeclareMathOperator{\Beta}{B}
+
+% Operators
+\DeclareMathOperator{\E}{E}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\CV}{CV}
+
+% likelihood functions
+\newcommand{\prob}[1]{\mathrm{Pr}\left( #1 \right)}
+\newcommand{\Lik}[1]{\mathrm{L}\left( #1 \right)}
+\newcommand{\logLik}[1]{l\left( #1 \right)}
+
+
+
+
+% ******************************* Meta data ************************************
+
+\title{Statistical aspects of Electrofishing}
+\author{Colin Millar}
+\date{\Sexpr{Sys.Date()}}
+
+\begin{document}
+
+\maketitle
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{Overview}
+
+This short note is to document the relavent theory used to derive a two stage prodeedure for modelling fish density from electrofishing data.  I will cover the following topics
+
+\begin{itemize}
+  \item Basic distributional theory for electrofishing;
+  \item The inclusion of overdispersion in electrofishing counts;
+  \item The two stage process; and
+  \item Propagating error through the two stage process.
+\end{itemize}
+
+
+
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{Distributional aspects of electrofishing}
+
+\subsection{A single electrofishing sample}
+
+The basic assumptions behind the analysis of a single electrofishing sample are that 1) all fish within a given fishing pass are equally catchable and 2) that the capture of a fish occurs independently of the capture of another; aditionally it is assumed that the population is closed, i.e., no (imm/em)igration.  These assumptions can be investigated later, but they are useful to build a basic theory on. These assumptions imply that the numbers of fish caught on each pass are binomially distributed. This leads to the following distribution (named here after Moran who was first to publish a simpler version likelihood), where $\bm{p}$ denotes a vector of capture probabilities, $A$ the abundance of fish prior to electrofishing and $\bm{n}$ are the observed counts,
+
+\begin{align}
+  (\bm{n}|\bm{p},A) &= \text{Moran}(\bm{n} \;|\; \bm{p}, A) \nonumber \\
+          &= \text{Bin}(n_1 | A, p_1) \;
+             \text{Bin}(n_2 | A - n_1, p_2) \;
+             \text{Bin}(n_3 | A - n_1 - n_2, p_3) \nonumber \\
+          &= \frac{A!}{(A-T)! \prod_i n_i!} p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{A-n_1} (1-p_2)^{A-n_1-n_2} (1-p_3)^{A-n_1-n_2-n_3} \label{eq:moran}
+%\end{align}
+\intertext{The Moran distribution (\ref{eq:moran}) can be split into two parts, by using the total count $T = \sum_i n_i$:}
+%\begin{align}
+  & = \frac{A!}{(A-T)!T!} \;
+    (1 - (1-p_1)(1-p_2)(1-p_3))^{T} ((1-p_1)(1-p_2)(1-p_3))^{A-T}  \label{eq:huggins}\\
+  &\qquad \times \;
+   \frac{T!}{\prod_i n_i!} \;
+     \frac{\displaystyle p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{n_2 + n_3} (1-p_2)^{n_3}}
+         {\displaystyle (1 - (1-p_1)(1-p_2)(1-p_3))^{T}} \label{eq:Tbinomial}
+\end{align}
+
+The resulting distributions are the Huggins distribution $(\bm{n}|\bm{p},T)$ (\ref{eq:huggins}) and a binomial distribution for $T$ $(T|\bm{p},A)$ (\ref{eq:Tbinomial}).
+
+
+\subsection{Types of overdispersion}
+
+In the following I will state the consequences of different assumtions about how $\bm{p}$ or $A$ varies between and within samples
+
+if $\bm{p}$ is fixed, then the conditional distrubution of counts $\bm{n}$ is Huggins, and if $\bm{p}$ varies with a dirichlet distribution, then the conditional distribution is ... (yet to work this out, but can be calles a Dirichlet-Huggins, if it fails to simplify).
+
+If $A$ is fixed, then $T$ is binomial, if it varies from sample to sample as a Poisson, then $T$ is Poisson, and if it varies as a Negative Binomial then $T$ is negative binomial.
+
+The consequence on the unconditional distribution of the counts are as follows, where the format is
+
+\begin{align}
+  (\bm{n}|A,\bm{p}) = (\bm{n}|T,\bm{p}) \times (T|A,\bm{p})
+\end{align}
+
+
+\begin{align*}
+  \text{Moran} &= \text{Huggins} \times \text{Binomial} \\
+  \text{Poisson} &= \text{Huggins} \times \text{Poisson} \\
+  \text{Negative Multinomial} &= \text{Huggins} \times \text{Negative Binomial} \\
+  \text{Dirichlet-Multinomial} &= \text{Dirichlet-Huggins} \times \text{Binomial} \\
+  \text{Dirichlet-Multinomial Poisson Mix} &= \text{Dirichlet-Huggins} \times \text{Poisson} \\
+  \text{Dirichlet-Multinomial Negative Multinomial Mix} &= \text{Dirichlet-Huggins} \times \text{Negative Binomial}
+\end{align*}
+
+The model we will seek to emulate in general is some kind of
+
+\begin{align}
+  \text{quasiHuggins Negative Multinomial Mixture} = \text{quasiHuggins} \times \text{Negative Binomial}
+\end{align}
+
+
+\section{Approximate simulation}
+
+The model we want to simulate from is the posterior distribution of
+
+\begin{align}
+  (\bm{n}|\mu, \theta,\bm{\alpha}) = (\bm{n}|T,\bm{\alpha}) \times (T|\mu, \theta,\bm{\alpha})
+\end{align}
+
+This can be done legitametly by simulating from the
+
+
+\end{document}
