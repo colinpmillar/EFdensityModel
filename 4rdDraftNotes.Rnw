@@ -74,17 +74,7 @@
 %
 % ------------------------------------------------------------------------------
 
-\section{Overview}
-
-This short note is to document the relavent theory used to derive a two stage prodedure for modelling fish density from electrofishing data.  I will cover the following topics
-
-\begin{itemize}
-  \item Basic distributional theory for electrofishing;
-  \item The inclusion of overdispersion in electrofishing counts;
-  \item The two stage process; and
-  \item Propagating error through the two stage process.
-\end{itemize}
-
+\section{Introduction}
 
 
 
@@ -95,14 +85,51 @@ This short note is to document the relavent theory used to derive a two stage pr
 %
 % ------------------------------------------------------------------------------
 
-\section{Distributional aspects of electrofishing}
+\section{Models for one species and lifestage}
 
 \subsection{A single electrofishing sample}
 
-The basic assumptions behind the analysis of a single electrofishing sample are that 1) all fish within a given fishing pass are equally catchable and 2) that the capture of a fish occurs independently of the capture of another; aditionally it is assumed that the population is closed, i.e., no (imm/em)igration.  These assumptions can be investigated later, but they are useful to build a basic theory on. These assumptions imply that the numbers of fish caught on each pass are binomially distributed. This leads to the following distribution (named here after Moran who was first to publish a simpler version likelihood), where $\bm{p}$ denotes a vector of capture probabilities, $A$ the abundance of fish prior to electrofishing and $\bm{n}$ are the observed counts,
-
+A single electrofishing sample results in a vector of counts arising from an iterative sampling procedure called a pass.  On each pass sampling gear is used to remove fish from a predteremined stretch of river.  The probability that a given fish, $j$, is captured given that it encounters the sampling gear can be related to a linear combination of covariates using the logistic transformation
 \begin{align}
-  (\bm{n}|\bm{p},A) &= \text{Moran}(\bm{n} \;|\; \bm{p}, A) \nonumber \\
+  \log\left( \frac{p_j}{1- p_j} \right) = \eta_j = \sum_{m=1}^M \beta_m x_{jm}
+\end{align}
+If all available fish are encountered on each pass and each behaves independently, then the leads to a binomial sampling model for a single electrofishing pass. As discussed extensively and widely in the literature it is likely that fish that avoided capture may change thier behaviour on subsequent passes, or that the act of fishing in someway disturbs the environment, then the probability of capture for a given fish, $j$, will change on subsequent passes, so that that the probability of capture \emph{could} be modelled in terms of
+\begin{align}
+  \eta_{jl} = \sum_{m=1}^q \beta_{lm} x_{jm}
+\end{align}
+with suitable constraints.  The overall probality of catching a the $j$th fish on the 1st, 2nd and subseqent passes is
+\begin{align}
+  (\pi_{j1}, \pi_{j2}, \ldots, \pi_{jL}) =
+  \left(p_{j1}\, , \quad(1-p_{j1})p_{j2}\, , \, \ldots \, , \, \prod_l^{L-1} (1-p_{jl})p_{jL} \right)
+\end{align}
+and the probability of not capturing the $jth$ fish is
+\begin{align}
+  \pi_{jL+} = \prod_l^{L} (1-p_{jl})
+\end{align}
+Therefore wether a fish is captured on the first or subsequent pass or whether not at all has a multinomial distrution with probability $\pi_j = (\pi_{j1}, \pi_{j2}, \ldots, \pi_{jL}, \pi_{jL+})$.
+
+\subsubsection{Conditioning on captured fish}
+
+Huggins showed that if onr conditions on only those fish captured, then the conditional probability of capture becomes
+\begin{align}
+  \frac{\pi_{jl}}{1-\pi_{jL+}}
+\end{align}
+This allows capture probability to be modelled and estimated seperately from abundance.
+
+It is possible that features of each fish such as agression, preferred habitat, condition, etc, may result in differences in capture probability, and if these attributes are not included in the model then there is the potential for fish counts to be more variable than you might expect under multinomial sampling; this can also occur if fish shoal or show group behaviour.  One way to deal with this is to include a fish level random effect such as
+\begin{align}
+  \eta_{jl} = \sum_{m=1}^q \beta_{lm} x_{jm} + \alpha_{jm}
+\end{align}
+where $\alpha_{jm}$ is multivariate normal and where the expectation can vary by fish, or by fish and fishing pass,
+
+
+
+
+
+
+The likelihood for a single sample comprising for example 3 passes is then the product of 3 binomial likelihoods, and is called here the Moran model after Moran (19xx)
+\begin{align}
+  (\bm{c}|\bm{p},A) &= \text{Moran}(\bm{n} \;|\; \bm{p}, A) \nonumber \\
           &= \text{Bin}(n_1 | A, p_1) \;
              \text{Bin}(n_2 | A - n_1, p_2) \;
              \text{Bin}(n_3 | A - n_1 - n_2, p_3) \nonumber \\
