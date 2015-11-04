@@ -76,6 +76,16 @@
 
 \section{Introduction}
 
+A large electrofishing dataset is statistically complex to model because the sampleing process is multilevel. In a sampling scheme where there are sevaral types of fish sampled on each fishing event (ie species and lifestages), then there are conseivably the following type of random variation present
+
+\begin{itemize}
+  \item between fish
+  \item between fish type
+  \item between pass
+  \item between sample
+\end{itemize}
+
+Capture probability can vary with all these things, while fish density should only vary between fish-type and between sample.
 
 
 
@@ -110,17 +120,23 @@ Therefore wether a fish is captured on the first or subsequent pass or whether n
 
 \subsubsection{Conditioning on captured fish}
 
-Huggins showed that if onr conditions on only those fish captured, then the conditional probability of capture becomes
+Huggins showed that if onr conditions on only those fish captured, then the conditional probability of capture is
 \begin{align}
   \frac{\pi_{jl}}{1-\pi_{jL+}}
 \end{align}
-This allows capture probability to be modelled and estimated seperately from abundance.
+resulting in a log-likelihood for a single sample of
+\begin{align}
+  L = \sum_{j} \sum_{l=1}^L c_{jl} \log \pi_{jl} -\sum_{j} c_{j.} \log (1-\pi_{jL+})
+\end{align}
+
 
 It is possible that features of each fish such as agression, preferred habitat, condition, etc, may result in differences in capture probability, and if these attributes are not included in the model then there is the potential for fish counts to be more variable than you might expect under multinomial sampling; this can also occur if fish shoal or show group behaviour.  One way to deal with this is to include a fish level random effect such as
 \begin{align}
   \eta_{jl} = \sum_{m=1}^q \beta_{lm} x_{jm} + \alpha_{jm}
 \end{align}
-where $\alpha_{jm}$ is multivariate normal and where the expectation can vary by fish, or by fish and fishing pass,
+where $\alpha_{jm}$ is multivariate normal and where the expectation can vary by fish, or by fish and fishing pass.  Such a model would lead to an overdispersed multinomial distribuion.  There are a variaty of ways to include fish to fish random variation
+
+
 
 
 
