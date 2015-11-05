@@ -67,6 +67,10 @@
 
 \maketitle
 
+\tableofcontents
+
+Note that this is being written as a paper for PhD purposes.  We will need to see what people think, but we will probably just thin this down a bit and turn this into a methods section and perhaps put other bits into an appendix.  For example I can see the section on a parametric model for overdispersion in capture probability going in an appendix.
+
 
 % ------------------------------------------------------------------------------
 %
@@ -76,16 +80,13 @@
 
 \section{Introduction}
 
-A large electrofishing dataset is statistically complex to model because the sampleing process is multilevel. In a sampling scheme where there are sevaral types of fish sampled on each fishing event (ie species and lifestages), then there are conseivably the following type of random variation present
+Large multispecies age-structured electrofishing datasets are statistically complex to model because of heirarchical structure in the data. Two processes define an electrofishing sample: capture probability $p$ and fish abundance $N$.  Millar et al. (2015) presented a model where capture probability was shown to vary with covariates describing habitat and sampling procedure.  After controling for these factors Millar et al. found that there remained considerable variation in the observations at the sample level. This between sample variation could be due to a number of variables not included in the model such as water temperature at time of sampling, electrical current used, light attenuation / cloud cover etc.  This additional variability was accounted for by using an approximate quasi-likelihood approach.
 
-\begin{itemize}
-  \item between fish
-  \item between fish type
-  \item between pass
-  \item between sample
-\end{itemize}
+  In this paper the same variables used in Millar et al. are used to model fish abundance and as with capture probability it is likely that fish abundance will show additional variability due to factors not included in the model, such as the distribution of reds or fine-scale geomorphic descriptions. Additionally, it is also possible that the presence of one lifestage or species could inhibit or encourage the presence of another. So, the abundances of each fish-type may show correlated between sample variation.
 
-Capture probability can vary with all these things, while fish density should only vary between fish-type and between sample.
+  This paper develops a modelling approach to allow efficient model selection while accounting for between sample variation accross fish-type using generalised additive models.  The sampling efficiency of each sample is derived from a capture probability model arrived at using the procedure set out in Millar et al. (2015). This provides an offset with which to model density from the total catch. In order to correctly assess the significance of terms in the density model, it is, therefore,  nessisary to account for the uncertainty due to the estimation of capture probability. This is achieved using a simulation procedure. Finally, the capture probability and abundance models are used to inform a joint model of capture probability and abundance.
+
+  The paper procedes as follows. First a model for single sample is described and then the case where a number of samples are made over sites with the same characteristics is considered.  This allows the development of an approach for dealing with correlation between lifestages.  This model is then extended to allow for habitat and temporal variation.  The final section develops a parametric model for within and between sample overdispersion in capture probability informed by Millar et al. (2015) which is then combined with the density model to produce a final joint model.
 
 
 
@@ -95,9 +96,86 @@ Capture probability can vary with all these things, while fish density should on
 %
 % ------------------------------------------------------------------------------
 
-\section{Models for one species and lifestage}
+\section{A density model for a single sample}
 
-\subsection{A single electrofishing sample}
+The density $\lambda_k$ of fish-type $k$ ($k =$ trout-fry, trout-parr, salmon-fry, salmon-parr) at a single electrofishing site is determined solely by fish type.  Density is often modelled on the log scale so that
+\begin{align}
+  \log \lambda_k = \nu_k
+\end{align}
+If it is assumed that the abundance $N_k$ of each fish-type in the fished area at the time of sampling is a realisation of a Poisson process with rate $\lambda_k$, then the total count $T_k$ of each fish type is Poisson distributed with rate $q_kA\lambda_k$, where $q_k$ is the average probability of a fish of type $k$ apearing in the sample (Huggins, 1996).  The parameters $\nu_k$ can then be estimated by maximising the log-likelihood
+\begin{align}
+  L = \sum_k T_k\nu_k - e^{\nu_k}
+\end{align}
+
+Estimating $\nu_k$ is straightforward if $q_k$ is assumed known without error by using standard software for generalised linear models (GLMs).  For convience let
+\begin{align}
+  \bm{\nu} =
+    \begin{pmatrix}
+      \nu_{\text{trout-fry}} \\ \nu_{\text{trout-parr}} \\
+      \nu_{\text{salmon-fry}} \\ \nu_{\text{salmon-parr}}
+    \end{pmatrix}
+\intertext{and}
+  \bm{q} =
+    \begin{pmatrix}
+      q_{\text{trout-fry}} \\ q_{\text{trout-parr}} \\
+      q_{\text{salmon-fry}} \\ q_{\text{salmon-parr}}
+    \end{pmatrix}
+\end{align}
+
+then, if there is sufficient numers of fish caught, the maximul likelihood estimate $\hat{\bm{\nu}}|\hat{\bm{q}}$ (i.e. conditional on the ML estimate of the $q_k$) is multivariate normally distributed with mean $\bm{\nu}|\hat{\bm{q}}$ and with a diagonal covariance matrix. Diagonal beacause conditional on $q_k$, the total counts are realisations of independent poisson distributions.
+
+However, because $\hat{\bm{q}}$ is itself an estimate, it also has a distribution and the covariance matrix of which may not be diagonal.  Hence, after incorporating the error from the capture probability model into the density model, the unconditional estimate $\hat{\bm{\nu}}$ is approximately
+\begin{align}
+  \hat{\bm{\nu}} \sim \NormD(\bm{\nu}, \bm{R})
+\end{align}
+where $R$ is approximately..... from Huggins + GLM poisson error. The estimation of the variance matrix $R$ is given in Appendix A.  The covariance matrix $R$ can be used to construct confidence intervals etc.
+
+
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{Between sample variation}
+
+Following Fryer (1991) between sample variation can be incorporated using a two stage procedure where
+\begin{align}
+  \bm{\nu}_i \sim \NormD(\bm{\alpha}, \bm{R}_i + \bm{D})
+\end{align}
+
+The point here is to get a good estimate of the variance matrix $D$ describing the covariance between species and lifestages.
+
+Given the matrix $D$ the parameters $\bm{\alpha}$ can be estimated by maximising the penalised log-likelihood
+\begin{align}
+  L = \sum_{ik} T_{ik} \nu_{ik} - e^{\nu_{ik}} -  \sum_i \bm{\nu}_i' \bm{D\nu}_i
+\end{align}
+this model can be fitted in mgcv by specifying a offset penalty matrix.
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{Modelling abundance accross Scotland}
+
+Here we extend the model to incorporate covariates.  So the task here is to fit suitable complex models to each species-lifestage, then fit a sample-wise model with the predictions from the complex models as offsets. THen estimate $D$ from these.
+
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{A parametric version of Millar et al.}
+
+\subsection{Within sample variation}
 
 A single electrofishing sample results in a vector of counts arising from an iterative sampling procedure called a pass.  On each pass sampling gear is used to remove fish from a predteremined stretch of river.  The probability that a given fish, $j$, is captured given that it encounters the sampling gear can be related to a linear combination of covariates using the logistic transformation
 \begin{align}
@@ -116,11 +194,7 @@ and the probability of not capturing the $jth$ fish is
 \begin{align}
   \pi_{jL+} = \prod_l^{L} (1-p_{jl})
 \end{align}
-Therefore wether a fish is captured on the first or subsequent pass or whether not at all has a multinomial distrution with probability $\pi_j = (\pi_{j1}, \pi_{j2}, \ldots, \pi_{jL}, \pi_{jL+})$.
-
-\subsubsection{Conditioning on captured fish}
-
-Huggins showed that if onr conditions on only those fish captured, then the conditional probability of capture is
+Therefore wether a fish is captured on the first or subsequent pass or whether not at all has a multinomial distrution with probability $\pi_j = (\pi_{j1}, \pi_{j2}, \ldots, \pi_{jL}, \pi_{jL+})$. Huggins showed that if onr conditions on only those fish captured, then the conditional probability of capture is
 \begin{align}
   \frac{\pi_{jl}}{1-\pi_{jL+}}
 \end{align}
@@ -134,82 +208,24 @@ It is possible that features of each fish such as agression, preferred habitat, 
 \begin{align}
   \eta_{jl} = \sum_{m=1}^q \beta_{lm} x_{jm} + \alpha_{jm}
 \end{align}
-where $\alpha_{jm}$ is multivariate normal and where the expectation can vary by fish, or by fish and fishing pass.  Such a model would lead to an overdispersed multinomial distribuion.  There are a variaty of ways to include fish to fish random variation
+where $\alpha_{jm}$ is multivariate normal and where the expectation can vary by fish, or by fish and fishing pass.  Such a model would lead to an overdispersed multinomial distribuion.
+
+\subsection{Between sample variation}
 
 
 
 
 
 
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{A joint model of capture probability and fish abundance}
 
 
-The likelihood for a single sample comprising for example 3 passes is then the product of 3 binomial likelihoods, and is called here the Moran model after Moran (19xx)
-\begin{align}
-  (\bm{c}|\bm{p},A) &= \text{Moran}(\bm{n} \;|\; \bm{p}, A) \nonumber \\
-          &= \text{Bin}(n_1 | A, p_1) \;
-             \text{Bin}(n_2 | A - n_1, p_2) \;
-             \text{Bin}(n_3 | A - n_1 - n_2, p_3) \nonumber \\
-          &= \frac{A!}{(A-T)! \prod_i n_i!} p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{A-n_1} (1-p_2)^{A-n_1-n_2} (1-p_3)^{A-n_1-n_2-n_3} \label{eq:moran}
-%\end{align}
-\intertext{The Moran distribution (\ref{eq:moran}) can be split into two parts, by using the total count $T = \sum_i n_i$:}
-%\begin{align}
-  & = \frac{A!}{(A-T)!T!} \;
-    (1 - (1-p_1)(1-p_2)(1-p_3))^{T} ((1-p_1)(1-p_2)(1-p_3))^{A-T}  \label{eq:huggins}\\
-  &\qquad \times \;
-   \frac{T!}{\prod_i n_i!} \;
-     \frac{\displaystyle p_1^{n_1} p_2^{n_2} p_3^{n_3} (1-p_1)^{n_2 + n_3} (1-p_2)^{n_3}}
-         {\displaystyle (1 - (1-p_1)(1-p_2)(1-p_3))^{T}} \label{eq:Tbinomial}
-\end{align}
-
-The resulting distributions are the Huggins distribution $(\bm{n}|\bm{p},T)$ (\ref{eq:huggins}) and a binomial distribution for $T$ $(T|\bm{p},A)$ (\ref{eq:Tbinomial}).  Note that the Huggins distribution is also known as a positive binomial distribution.
-
-
-\subsection{Types of overdispersion}
-
-In the following I will state the consequences of different assumtions about how $\bm{p}$ or $A$ varies between and within samples
-
-if $\bm{p}$ is fixed, then the conditional distrubution of counts $\bm{n}$ is Huggins, and if $\bm{p}$ varies with a dirichlet distribution, then the conditional distribution is ... (yet to work this out, but can be calles a Dirichlet-Huggins, if it fails to simplify).
-
-If $A$ is fixed, then $T$ is binomial, if it varies from sample to sample as a Poisson, then $T$ is Poisson, and if it varies as a Negative Binomial then $T$ is negative binomial.
-
-The consequence on the unconditional distribution of the counts are as follows, where the format is
-
-\begin{align}
-  (\bm{n}|A,\bm{p}) = (\bm{n}|T,\bm{p}) \times (T|A,\bm{p})
-\end{align}
-
-\begin{align*}
-  \text{Moran} &= \text{Huggins} \times \text{Binomial} \\
-  \text{Poisson} &= \text{Huggins} \times \text{Poisson} \\
-  \text{Negative Multinomial} &= \text{Huggins} \times \text{Negative Binomial} \\
-  \text{Dirichlet-Multinomial} &= \text{Dirichlet-Huggins} \times \text{Binomial} \\
-  \text{Dirichlet-Multinomial Poisson Mix} &= \text{Dirichlet-Huggins} \times \text{Poisson} \\
-  \text{Dirichlet-Multinomial Negative Multinomial Mix} &= \text{Dirichlet-Huggins} \times \text{Negative Binomial}
-\end{align*}
-
-The model we will seek to emulate in general is some kind of
-
-\begin{align}
-  \text{quasiHuggins Negative Multinomial Mixture} = \text{quasiHuggins} \times \text{Negative Binomial}
-\end{align}
-
-
-
-\section{Multiple species and lifestages}
-
-
-
-
-
-\section{Approximate simulation}
-
-The model we want to simulate from is the posterior distribution of
-
-\begin{align}
-  (\bm{n}|\mu, \theta,\bm{\alpha}) = (\bm{n}|T,\bm{\alpha}) \times (T|\mu, \theta,\bm{\alpha})
-\end{align}
-
-This can be done legitametly by simulating from the
 
 
 \end{document}
