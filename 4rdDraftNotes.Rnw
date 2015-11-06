@@ -84,9 +84,9 @@ Large multispecies age-structured electrofishing datasets are statistically comp
 
   In this paper the same variables used in Millar et al. are used to model fish abundance and as with capture probability it is likely that fish abundance will show additional variability due to factors not included in the model, such as the distribution of reds or fine-scale geomorphic descriptions. Additionally, it is also possible that the presence of one lifestage or species could inhibit or encourage the presence of another. So, the abundances of each fish-type may show correlated between sample variation.
 
-  This paper develops a modelling approach to allow efficient model selection while accounting for between sample variation accross fish-type using generalised additive models.  The sampling efficiency of each sample is derived from a capture probability model arrived at using the procedure set out in Millar et al. (2015). This provides an offset with which to model density from the total catch. In order to correctly assess the significance of terms in the density model, it is, therefore,  nessisary to account for the uncertainty due to the estimation of capture probability. This is achieved using a simulation procedure. Finally, the capture probability and abundance models are used to inform a joint model of capture probability and abundance.
+  This paper develops a modelling approach to allow efficient model selection while accounting for between sample variation accross fish-type using generalised additive models.  The sampling efficiency of each sample is derived from a capture probability model arrived at using the procedure set out in Millar et al. (2015). This provides an offset with which to model density from the total catch. In order to correctly assess the significance of terms in the density model, it is, therefore,  nessisary to account for the uncertainty due to the estimation of capture probability. This is achieved using a simulation procedure.
 
-  The paper procedes as follows. First a model for single sample is described and then the case where a number of samples are made over sites with the same characteristics is considered.  This allows the development of an approach for dealing with correlation between lifestages.  This model is then extended to allow for habitat and temporal variation.  The final section develops a parametric model for within and between sample overdispersion in capture probability informed by Millar et al. (2015) which is then combined with the density model to produce a final joint model.
+  The paper procedes as follows. First a model for single sample is described and then the case where a number of samples are made over sites with the same characteristics is considered.  This allows the development of an approach for dealing with correlation between lifestages.  This model is then extended to allow for habitat and temporal variation.
 
 
 
@@ -257,66 +257,6 @@ Then finally re-estmimate nu and get appropriate confidence intervals!
 \section{Modelling abundance accross Scotland}
 
 Here we extend the model to incorporate covariates.  So the task here is to fit suitable complex models to each species-lifestage, then fit a sample-wise model with the predictions from the complex models as offsets. THen estimate $D$ from these.
-
-
-
-% ------------------------------------------------------------------------------
-%
-%
-%
-% ------------------------------------------------------------------------------
-
-\section{A parametric version of Millar et al.}
-
-\subsection{Within sample variation}
-
-A single electrofishing sample results in a vector of counts arising from an iterative sampling procedure called a pass.  On each pass sampling gear is used to remove fish from a predteremined stretch of river.  The probability that a given fish, $j$, is captured given that it encounters the sampling gear can be related to a linear combination of covariates using the logistic transformation
-\begin{align}
-  \log\left( \frac{p_j}{1- p_j} \right) = \eta_j = \sum_{m=1}^M \beta_m x_{jm}
-\end{align}
-If all available fish are encountered on each pass and each behaves independently, then the leads to a binomial sampling model for a single electrofishing pass. As discussed extensively and widely in the literature it is likely that fish that avoided capture may change thier behaviour on subsequent passes, or that the act of fishing in someway disturbs the environment, then the probability of capture for a given fish, $j$, will change on subsequent passes, so that that the probability of capture \emph{could} be modelled in terms of
-\begin{align}
-  \eta_{jl} = \sum_{m=1}^q \beta_{lm} x_{jm}
-\end{align}
-with suitable constraints.  The overall probality of catching a the $j$th fish on the 1st, 2nd and subseqent passes is
-\begin{align}
-  (\pi_{j1}, \pi_{j2}, \ldots, \pi_{jL}) =
-  \left(p_{j1}\, , \quad(1-p_{j1})p_{j2}\, , \, \ldots \, , \, \prod_l^{L-1} (1-p_{jl})p_{jL} \right)
-\end{align}
-and the probability of not capturing the $jth$ fish is
-\begin{align}
-  \pi_{jL+} = \prod_l^{L} (1-p_{jl})
-\end{align}
-Therefore wether a fish is captured on the first or subsequent pass or whether not at all has a multinomial distrution with probability $\pi_j = (\pi_{j1}, \pi_{j2}, \ldots, \pi_{jL}, \pi_{jL+})$. Huggins showed that if onr conditions on only those fish captured, then the conditional probability of capture is
-\begin{align}
-  \frac{\pi_{jl}}{1-\pi_{jL+}}
-\end{align}
-resulting in a log-likelihood for a single sample of
-\begin{align}
-  L = \sum_{j} \sum_{l=1}^L c_{jl} \log \pi_{jl} -\sum_{j} c_{j.} \log (1-\pi_{jL+})
-\end{align}
-
-
-It is possible that features of each fish such as agression, preferred habitat, condition, etc, may result in differences in capture probability, and if these attributes are not included in the model then there is the potential for fish counts to be more variable than you might expect under multinomial sampling; this can also occur if fish shoal or show group behaviour.  One way to deal with this is to include a fish level random effect such as
-\begin{align}
-  \eta_{jl} = \sum_{m=1}^q \beta_{lm} x_{jm} + \alpha_{jm}
-\end{align}
-where $\alpha_{jm}$ is multivariate normal and where the expectation can vary by fish, or by fish and fishing pass.  Such a model would lead to an overdispersed multinomial distribuion.
-
-\subsection{Between sample variation}
-
-
-
-
-
-
-% ------------------------------------------------------------------------------
-%
-%
-%
-% ------------------------------------------------------------------------------
-
-\section{A joint model of capture probability and fish abundance}
 
 
 
