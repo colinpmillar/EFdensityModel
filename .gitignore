@@ -7,3 +7,5 @@
 *.pdf
 *.tex
 *.tex
+*.toc
+cache
