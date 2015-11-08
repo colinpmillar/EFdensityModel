@@ -65,6 +65,10 @@
 
 \begin{document}
 
+<<settings, echo=FALSE, meesage=FALSE>>=
+library(ef, quietly = TRUE)
+@
+
 \maketitle
 
 \tableofcontents
@@ -197,11 +201,14 @@ Simulated densities for each fish type are shown below, each has a mean of 40 fi
 set.seed(235987)
 numat <- MASS::mvrnorm(n, alpha, D)
 colnames(numat) <- c("Trout-fry", "Trout-parr", "Salmon-fry", "Salmon-parr")
-plot(as.data.frame(exp(numat)))
 ndata <- expand.grid(lifestage = c("fry", "parr"),
                      species = c("Trout", "Salmon"),
                      sample = 1:n)
 ndata $ nu <- exp(c(numat))
+@
+
+<<simulation_nu_plot, echo=FALSE>>=
+plot(as.data.frame(exp(numat)))
 @
 
 <<simulation_p, echo=FALSE>>=
@@ -209,6 +216,7 @@ pdata <- expand.grid(pass = 1:3,
                      lifestage = c("fry", "parr"),
                      species = c("Trout", "Salmon"),
                      sample = 1:n)
+pdata$id <- with(pdata, as.numeric(factor(paste(lifestage, species, sample))))
 pmodel <- ~ lifestage + species
 Xp <- model.matrix(pmodel, pdata)
 betap <- c(0.5, 0.5, -0.2)
@@ -216,35 +224,77 @@ pdata $ p <- 1/(1+exp(-Xp %*% betap))
 pmat <- matrix(pdata $ p, 3)
 pimat <- rbind(pmat[1,], (1-pmat[1,])*pmat[2,], (1-pmat[1,])*(1-pmat[1,])*pmat[3,])
 pdata $ pi <- c(pimat)
-pdata $ id <- 1:nrow(pdata)
+pdata $ row <- 1:nrow(pdata)
 pdata <- merge(pdata, ndata)
-pdata <- pdata[order(pdata$id),]
-ndata $ pi <- 1 - (1-pmat[1,])*(1-pmat[1,])*(1-pmat[3,])
+pdata <- pdata[order(pdata$row),]
 @
 
 <<simulation_y, echo=FALSE>>=
 # y is poisson(pi * A * nu)
-set.seed(345453)
+set.seed(345455)
 pdata $ y <- rpois(nrow(pdata), pdata$pi * pdata$nu)
 ndata $ y <- colSums(matrix(pdata $ y, 3))
 @
 
 having simulated some data we can fit a capture probability model
 
-<<fitting_p, cache=TRUE>>=
-library(rstan)
-pmod <- ef::efp(y ~ lifestage + species, pass = pass, data = pdata, hessian = TRUE)
+<<fitting_p, message=FALSE>>=
+pmod <- efp(y ~ lifestage + species, pass = pass, id = id,
+            data = pdata)
 @
 
 And now we can fit a density model to each sample
 
 <<fitting_nu>>=
-nmod <- glm(y ~ lifestage:species:factor(sample)-1, family = poisson, data = ndata, offset = log(ndata$pi))
+pmat <- matrix(fitted(pmod), 3)
+ndata $ pi <- 1 - (1-pmat[1,])*(1-pmat[1,])*(1-pmat[3,])
+nmod <- glm(y ~ lifestage:species:factor(sample)-1, family = poisson,
+            data = ndata, offset = log(ndata$pi))
 @
 
-Now we can calculate $R_i$ for each nu
+Now we can calculate $R_i$ for each $\nu_i$. $R_i$ is the total error in estimating $\nu_i$, one way to get this is via bootstrapping
+
+<<boot_nu, cache=TRUE, message=FALSE>>=
+do.one.boot <- function(...) {
+  bsamp <- sample(unique(ndata$sample),
+                  length(unique(ndata$sample)),
+                  replace = TRUE)
+  bpdata <- pdata[pdata$sample %in% bsamp,]
+  bndata <- ndata[ndata$sample %in% bsamp,]
+
+  pmod <- efp(y ~ lifestage + species, pass = pass, id = id,
+              data = bpdata)
+  pmat <- matrix(fitted(pmod), 3)
+  bndata $ pi <- 1 - (1-pmat[1,])*(1-pmat[1,])*(1-pmat[3,])
+  nmod <- glm(y ~ lifestage:species:factor(sample)-1, family = poisson,
+              data = bndata, offset = log(bndata$pi))
+  out <- matrix(coef(nmod), nrow = 4)
+  colnames(out) <- paste(sort(unique(bsamp)))
+  # add in poisson estimation error
+  out[] <- MASS::mvrnorm(1, coef(nmod), vcov(nmod))
+  out
+}
+nboot <- 1000
+sim <- replicate(nboot, do.one.boot(), simplify = FALSE)
+sim <- sapply(sim,
+              function(x) {
+                out <- matrix(NA, 4, n)
+                colnames(out) <- 1:n
+                out[,colnames(x)] <- x
+                out
+              })
+dim(sim) <- c(4, n, nboot)
+Ri <- lapply(1:n,
+            function(i) {
+              x <- t(sim[,i,])
+              var(x, na.rm = TRUE)
+            })
+Ri[[1]]
+unname(vcov(nmod)[1:4,1:4])
+@
 
 And then estimate $D$!
+
 
 Then finally re-estmimate nu and get appropriate confidence intervals!
 
