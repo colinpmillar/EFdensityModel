@@ -65,7 +65,7 @@
 
 \begin{document}
 
-<<settings, echo=FALSE, meesage=FALSE>>=
+<<settings, echo=FALSE, message=FALSE>>=
 library(ef, quietly = TRUE)
 @
 
@@ -73,7 +73,7 @@ library(ef, quietly = TRUE)
 
 \tableofcontents
 
-Note that this is being written as a paper for PhD purposes.  We will need to see what people think, but we will probably just thin this down a bit and turn this into a methods section and perhaps put other bits into an appendix.  For example I can see the section on a parametric model for overdispersion in capture probability going in an appendix.
+Note that this is being drafted in paper style for my own purposes.  We can probably just thin this down a bit and turn this into a methods section and perhaps put other bits, if nessissary, into a short appendix.  It is also still developing so dont consider this as a draft as yet.  The methods are still under development.
 
 
 % ------------------------------------------------------------------------------
@@ -86,11 +86,11 @@ Note that this is being written as a paper for PhD purposes.  We will need to se
 
 Large multispecies age-structured electrofishing datasets are statistically complex to model because of heirarchical structure in the data. Two processes define an electrofishing sample: capture probability $p$ and fish abundance $N$.  Millar et al. (2015) presented a model where capture probability was shown to vary with covariates describing habitat and sampling procedure.  After controling for these factors Millar et al. found that there remained considerable variation in the observations at the sample level. This between sample variation could be due to a number of variables not included in the model such as water temperature at time of sampling, electrical current used, light attenuation / cloud cover etc.  This additional variability was accounted for by using an approximate quasi-likelihood approach.
 
-  In this paper the same variables used in Millar et al. are used to model fish abundance and as with capture probability it is likely that fish abundance will show additional variability due to factors not included in the model, such as the distribution of reds or fine-scale geomorphic descriptions. Additionally, it is also possible that the presence of one lifestage or species could inhibit or encourage the presence of another. So, the abundances of each fish-type may show correlated between sample variation.
+  In this document the same variables used in Millar et al. are used to model fish abundance and as with capture probability it is likely that fish abundance will show additional variability due to factors not included in the model, such as the proximity of redds or fine-scale habitat features. Additionally, it is also possible that the presence of one lifestage or species could inhibit or encourage the presence of another. Because of this, the abundances of each fish-type may show correlation between samples.
 
-  This paper develops a modelling approach to allow efficient model selection while accounting for between sample variation accross fish-type using generalised additive models.  The sampling efficiency of each sample is derived from a capture probability model arrived at using the procedure set out in Millar et al. (2015). This provides an offset with which to model density from the total catch. In order to correctly assess the significance of terms in the density model, it is, therefore,  nessisary to account for the uncertainty due to the estimation of capture probability. This is achieved using a simulation procedure.
+  This document develops a modelling approach to allow efficient model selection while accounting for between sample variation accross fish-type using generalised additive models.  The sampling efficiency of each sample is derived from a capture probability model arrived at using the procedure set out in Millar et al. (2015). This provides an offset with which to model density from the total catch. In order to correctly assess the significance of terms in the density model, it is, therefore,  nessisary to account for the uncertainty due to the estimation of capture probability. This is achieved using a simulation procedure.
 
-  The paper procedes as follows. First a model for single sample is described and then the case where a number of samples are made over sites with the same characteristics is considered.  This allows the development of an approach for dealing with correlation between lifestages.  This model is then extended to allow for habitat and temporal variation.
+  This document procedes as follows. First a model for single sample is described and then the case where a number of samples are made over sites with the same characteristics is considered.  This allows the development of an approach for dealing with correlation between lifestages.  This model is then extended to allow for habitat and temporal variation.
 
 
 
@@ -141,6 +141,7 @@ from Huggins + GLM poisson error. The estimation of the variance matrix $R$ is g
 
 
 
+
 % ------------------------------------------------------------------------------
 %
 %
@@ -161,6 +162,89 @@ Given the matrix $D$ the parameters $\bm{\alpha}$ can be estimated by maximising
   L = \sum_{ik} T_{ik} \nu_{ik} - e^{\nu_{ik}} -  \sum_i \bm{\nu}_i' \bm{D\nu}_i
 \end{align}
 this model can be fitted in mgcv by specifying a offset penalty matrix.
+
+
+
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{Quick go at estimating D}
+
+
+<<quick_try>>=
+
+# simulate a correlated process
+Di <- matrix(c(1, -.8, -.8, 1), 2, 2)
+nsamples <- 100
+lambda <- MASS::mvrnorm(n = nsamples, mu = c(1,4), Sigma = Di)
+obs_lambda <- lambda + rnorm(nsamples*2, 0, sqrt(2))
+
+dat <- data.frame(stage = factor(rep(c("fry", "parr"), each = nsamples)),
+                  id = factor(1:(2*nsamples)),
+                  sample = factor(rep(1:nsamples, 2)),
+                  density = c(obs_lambda))
+
+# set up smoother for fitting
+# this is the inverse of the joint covariance matrix
+D <- solve(Di %x% diag(nsamples))
+
+# design matrices
+Xm <- model.matrix(~ stage - 1, data = dat)
+Xi <- model.matrix(~ id - 1, data = dat)
+
+# now lets fit in mgcv
+library(mgcv)
+# first double the length of dat and then weight to zero
+#  to fool gam into thinking there is enough data
+dat2 <- rbind(dat, dat)
+dat2 $ weights <- rep(1:0, each = nrow(dat))
+dat2 $ Xm <- rbind(Xm, Xm)
+dat2 $ Xi <- rbind(Xi, Xi)
+
+# fit
+g1 <- gam(density ~ Xm + Xi - 1, paraPen=list(Xi=list(0.5*D, sp = 1)),
+          data = dat2, weights = weights)
+# scale should be 0.2
+g1 $ sig2
+# no. of parameters estimated = 202
+# (no. of samples * 2 stages + 2 stage means)
+# but number of model degrees of freedom:
+sum(g1$edf)
+# fitted sample effects
+dat $ fitted <- Xm %*% coef(g1)[grep("Xm", names(coef(g1)))] +
+                Xi %*% coef(g1)[grep("Xi", names(coef(g1)))]
+#
+fitted <- matrix(dat$fitted, ncol = 2, dimnames = list(NULL, c("fry", "parr")))
+par(mfrow = c(2,2))
+plot(obs_lambda)
+plot(fitted)
+plot(lambda, col = "red", cex = 0.5)
+points(fitted, cex = 0.5)
+plot(lambda, type = "n")
+arrows(fitted[,1], fitted[,2], lambda[,1], lambda[,2], length = 0.05, code = 1)
+cor(fitted)
+cov(fitted)
+cov(lambda)
+
+# have a look at confidence intervals around stage effect
+cbind(est = coef(g1)[1:2],
+      sd = sqrt(diag(vcov(g1)[1:2,1:2])))
+cov2cor(vcov(g1)[1:2,1:2])
+
+# what if we didnt model the correlation...
+g2 <- lm(density ~ stage - 1, data = dat)
+cbind(est = coef(g2),
+      sd = sqrt(diag(vcov(g2))))
+cov2cor(vcov(g2))
+@
+
+
+
 
 % ------------------------------------------------------------------------------
 %
@@ -238,14 +322,15 @@ ndata $ y <- colSums(matrix(pdata $ y, 3))
 
 having simulated some data we can fit a capture probability model
 
-<<fitting_p, message=FALSE>>=
+<<fitting_p, message=FALSE, eval = FALSE>>=
 pmod <- efp(y ~ lifestage + species, pass = pass, id = id,
             data = pdata)
 @
 
 And now we can fit a density model to each sample
 
-<<fitting_nu>>=
+
+<<fitting_nu, eval = FALSE>>=
 pmat <- matrix(fitted(pmod, type = "p"), 3)
 ndata $ pi <- 1 - (1-pmat[1,])*(1-pmat[1,])*(1-pmat[3,])
 nmod <- glm(y ~ lifestage:species:factor(sample)-1, family = poisson,
@@ -254,7 +339,7 @@ nmod <- glm(y ~ lifestage:species:factor(sample)-1, family = poisson,
 
 Now we can calculate $R_i$ for each $\nu_i$. $R_i$ is the total error in estimating $\nu_i$, one way to get this is via bootstrapping
 
-<<boot_nu, cache=TRUE, message=FALSE>>=
+<<boot_nu, cache=TRUE, message=FALSE, eval = FALSE>>=
 do.one.boot <- function(...) {
   bsamp <- sample(unique(ndata$sample),
                   length(unique(ndata$sample)),
@@ -296,7 +381,7 @@ unname(vcov(nmod)[1:4,1:4])
 
 another way to get this is via MCMC sampling
 
-<<mcmc_nu, cache=TRUE, message=FALSE>>=
+<<mcmc_nu, cache=TRUE, message=FALSE, eval = FALSE>>=
 samp <- simulate(pmod, nsim = 1000)
 library(rstan)
 sim <- extract(samp)$piT
