@@ -67,6 +67,9 @@
 
 <<settings, echo=FALSE, message=FALSE>>=
 library(ef, quietly = TRUE)
+library(dplyr, quietly = TRUE)
+library(tidyr, quietly = TRUE)
+library(mgcv, quietly = TRUE)
 @
 
 \maketitle
@@ -74,6 +77,10 @@ library(ef, quietly = TRUE)
 \tableofcontents
 
 Note that this is being drafted in paper style for my own purposes.  We can probably just thin this down a bit and turn this into a methods section and perhaps put other bits, if nessissary, into a short appendix.  It is also still developing so dont consider this as a draft as yet.  The methods are still under development.
+
+
+
+
 
 
 % ------------------------------------------------------------------------------
@@ -94,6 +101,12 @@ Large multispecies age-structured electrofishing datasets are statistically comp
 
 
 
+
+
+
+
+
+
 % ------------------------------------------------------------------------------
 %
 %
@@ -102,14 +115,19 @@ Large multispecies age-structured electrofishing datasets are statistically comp
 
 \section{A density model for a single sample}
 
+
 The density $\lambda_k$ of fish-type $k$ ($k =$ trout-fry, trout-parr, salmon-fry, salmon-parr) at a single electrofishing site is determined solely by fish type.  Density is often modelled on the log scale so that
+
 \begin{align}
   \log \lambda_k = \nu_k
 \end{align}
-If it is assumed that the abundance $N_k$ of each fish-type in the fished area at the time of sampling is a realisation of a Poisson process with rate $\lambda_k$, then the total count $T_k$ of each fish type is Poisson distributed with rate $q_kA\lambda_k$, where $q_k$ is the average probability of a fish of type $k$ apearing in the sample (Huggins, 1996).  The parameters $\nu_k$ can then be estimated by maximising the log-likelihood
+
+If it is assumed that the abundance $N_k$ of each fish-type in the fished area at the time of sampling is a realisation of a Poisson process with rate $\lambda_k$, then the total count $T_k$ of each fish type is Poisson distributed with rate $q_kA\lambda_k$, where $q_k$ is the average probability of a fish of type $k$ apearing in the sample (Huggins, 1996) and $A$ is the area fished.  The parameters $\nu_k$ can then be estimated by maximising the Poisson log-likelihood
+
 \begin{align}
-  L = \sum_k T_k\nu_k - e^{\nu_k}
+  \log L = \sum_k T_k\nu_k - \exp\big(\nu_k + \log q_k + \log A \big)
 \end{align}
+
 
 Estimating $\nu_k$ is straightforward if $q_k$ is assumed known without error by using standard software for generalised linear models (GLMs).  For convience let
 \begin{align}
@@ -126,19 +144,31 @@ Estimating $\nu_k$ is straightforward if $q_k$ is assumed known without error by
     \end{pmatrix}
 \end{align}
 
-then, if there is sufficient numers of fish caught, the maximul likelihood estimate $\hat{\bm{\nu}}|\hat{\bm{q}}$ (i.e. conditional on the ML estimate of the $q_k$) is multivariate normally distributed with mean $\bm{\nu}|\hat{\bm{q}}$ and with a diagonal covariance matrix. Diagonal beacause conditional on $q_k$, the total counts are realisations of independent poisson distributions.
+then, if there is sufficient numers of fish caught, the maximum likelihood estimate $\hat{\bm{\nu}}|\hat{\bm{q}}$ (i.e. conditional on the estimate of $q_k$ from the capture probability model) is multivariate normally distributed with mean $\bm{\nu}|\hat{\bm{q}}$ and with a diagonal covariance matrix. Diagonal beacause conditional on $q_k$, the total counts are realisations of independent poisson distributions.
 
 However, because $\hat{\bm{q}}$ is itself an estimate, it also has a distribution and the covariance matrix of which may not be diagonal.  Hence, after incorporating the error from the capture probability model into the density model, the unconditional estimate $\hat{\bm{\nu}}$ is approximately
 \begin{align}
-  \hat{\bm{\nu}} \sim \NormD(\bm{\nu}, \bm{R})
+  \hat{\bm{\nu}} \sim \NormD(\bm{\nu}, \bm{\Sigma})
 \end{align}
-where $R$ is approximately
+where $\bm{\Sigma}$ is approximately
 \begin{align}
-  I(\hat{\bm{\nu}})^{-1} + \frac{d\hat{\bm{q}}}{d \beta}' I(\hat{\beta})^{-1} \frac{d\hat{\bm{q}}}{d \beta}
+  \label{eq:hugginserror}
+  I(\hat{\bm{\nu}}|\hat{\bm{q}})^{-1} + \frac{d\hat{\bm{q}}}{d \beta}' I(\hat{\beta})^{-1} \frac{d\hat{\bm{q}}}{d \beta}
 \end{align}
-from Huggins + GLM poisson error. The estimation of the variance matrix $R$ is given in Appendix A.  The covariance matrix $R$ can be used to construct confidence intervals etc.
+where $I$ denotes the fisher information matrix and $\beta$ are the model parameters involved in estimating capture probability (see Huggins for more detail).  This variance matrix can be used to construct approximate pointwise confidence intervals or conduct hypothesis tests.
 
+An alternative approach, and likely more accurate, way to derive the distribution of $\hat{\bm{\nu}}$ is through bootstrapping.  This would be achieved as follows
 
+\begin{enumerate}
+  \item Take a bootstrap resample, $\bm{y}^*$ of the data $\bm{y}$, where a sample is an electrofishing site visit
+  \item Find the MLEs $\bm{\hat{\beta}}^*$ of the parameters of the selected capture probabilty model
+  \item Calculate the offset $\bm{\hat{q}}^*$
+  \item Find the MLEs $\bm{\hat{\nu}}^*|\bm{\hat{q}}^*$ given the same datset $\bm{y}^*$.
+  \item Store the estimates $\bm{\hat{\nu}}^*$ and intermediate steps if desired.
+  \item Repeat lots of times
+\end{enumerate}
+
+Calculating the variance of the realisations $\bm{\hat{\nu}}^*$ will result in an estimate of $\bm{\Sigma}$.
 
 
 
@@ -152,16 +182,27 @@ from Huggins + GLM poisson error. The estimation of the variance matrix $R$ is g
 
 Following Fryer (1991) between sample variation can be incorporated using a two stage procedure where
 \begin{align}
-  \bm{\nu}_i \sim \NormD(\bm{\alpha}, \bm{R}_i + \bm{D})
+  \bm{\nu}_i \sim \NormD(\bm{\alpha}, \bm{\Sigma}_i + \bm{D})
 \end{align}
 
-The point here is to get a good estimate of the variance matrix $D$ describing the covariance between species and lifestages.
+Here, the variance can be decomposed into an estimation error for each sample (site visit) $i$, $\bm{\Sigma}_i$, which is a combination of the density model parameter estimation error and the capture probability model parameter estimation error, and a second term $\bm{D}$ which describes the between sample covariance. The variance $\bm{\Sigma}_i$ can be estimated as described above, while the estimate of $\bm{D}$ is calculated following Fryer (1991).
 
-Given the matrix $D$ the parameters $\bm{\alpha}$ can be estimated by maximising the penalised log-likelihood
+
+Given the covariance $\bm{D}$, the parameters $\bm{\alpha}$ can be estimated by maximising the penalised log-likelihood
 \begin{align}
-  L = \sum_{ik} T_{ik} \nu_{ik} - e^{\nu_{ik}} -  \sum_i \bm{\nu}_i' \bm{D\nu}_i
+  \log L_p &= \log L - \text{penalty} \nonumber \\
+  \log L_p &= \sum_{ik} T_{ik} (\alpha_k + \eta_{ik}) - \exp\big(\alpha_k + \eta_{ik} + \log q_{ik} + \log A_i \big) -  \frac{1}{2}\sum_i \bm{\eta}_i' \bm{D^{-1}\eta}_i
 \end{align}
-this model can be fitted in mgcv by specifying a offset penalty matrix.
+where
+\begin{align}
+  \bm{\eta_{i}} \sim \NormD(\bm{0}, \bm{D})
+\end{align}
+this model can be fitted in mgcv by specifying a penalty matrix common to each sample, which is equal to $\frac{1}{2}\bm{D}^{-1}$.  This is done in practive using the texttt{paraPen} argument, see \texttt{?gam.models} for more information.
+
+The parameter estimates arising from the above penalised likelihood are conditional on the estimate of capture probability $\hat{\bm{q}}$, and so to derive appropriate confidence intervals and hypothesis tests, the estimation error from the capture probability model must be propagated.  This can be done either by the approach used in Huggins (equation \ref{eq:hugginserror}), or by the alternative bootstrap procedure described in the previous section, or a combination thereof.
+
+The following section gives an example how known between sample covariance $\bm{D}$ can be incorporated in a GAM.
+
 
 
 
@@ -246,13 +287,110 @@ cov2cor(vcov(g2))
 
 
 
+
+
+
+
 % ------------------------------------------------------------------------------
 %
 %
 %
 % ------------------------------------------------------------------------------
 
-\section{An analysis of simulated data}
+\section{Quick go at estimating D version 2}
+
+
+<<quick_try2>>=
+## get previous data...
+dat <- data.frame(y0 = obs_lambda[,1], y1 = obs_lambda[,2])
+
+## fit model...
+
+b <- gam(list(y0 ~ 1, y1 ~ 1), family=mvn(d=2), data=dat)
+b
+summary(b)
+solve(crossprod(b$family$data$R)) ## estimated cov matrix
+# compare to
+cov(fitted) + diag(g1$sig2, 2)
+@
+
+
+
+
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+\section{Cursory look at between sample variation in density}
+
+Below is a plot of estimated Fry against estimated Parr abundance within the same site.  The abudnaces were estimated by
+\begin{align}
+  \hat{N}_{ik} = \frac{T_{ik}}{\hat{q}_{ik}}
+\end{align}
+
+
+<<get_captureprob_paper_densities, echo = FALSE, cache = TRUE, message = FALSE>>=
+# install release version 1.0 of ef
+#httr::set_config(httr::use_proxy(url="192.168.41.8", port=80))
+#devtools::install_github("faskally/ef@v1.0")
+
+# load appropriate data
+load("C:/work/repos/papers/capture_prop_paper/intermediate_rData/phi.rData") # phi
+load("C:/work/repos/papers/capture_prop_paper/intermediate_rData/phi_new.rData") # phi
+load("C:/work/repos/papers/capture_prop_paper/intermediate_rData/screenedData.rData") # ef
+
+# calculate nicer covariates
+ef <- within(ef, {
+              cDistance_s = c(scale(Distance_s))
+              cWater_W = c(scale(Water_W))
+              cElevation_ = c(scale(Elevation_))
+              fyear = factor(fyear)
+              Trust = factor(Trust)
+              LifeStage = factor(LifeStage)
+              })
+contrasts(ef $ fyear) <- "contr.sum"
+contrasts(ef $ Trust) <- "contr.treatment"
+
+# fit model
+modelledpf <-  n ~ LifeStage + Trust + fyear + pass23 + cWater_W +
+                   cElevation_ + cDistance_s +
+                   LifeStage:pass23 + s(doy, k = 3, by = LifeStage) +
+                   cElevation_:LifeStage
+modelledp <- efp(modelledpf, data = ef, pass = pass)
+
+# get density estimates
+ef $ pijk <- modelledp $ fitted
+
+# by sample/species/lifetage
+ef2 <- ef %>%
+       select(sampleID, LifeStage, pass, pijk) %>%
+       as.data.frame(.) %>%
+       spread(pass, pijk)
+
+ef2 $ p <- 1 - (1-ef2[["1"]]) * (1-ef2[["2"]]) * (1-ef2[["3"]])
+ef2 $ n <- c(tapply(ef $ n, list(ef $ LifeStage, ef $ sampleID), sum))
+ef2 $ abundance <- ef2$n / ef2 $ p
+
+abundance <- t(matrix(ef2 $ abundance, nrow = 2))
+plot(log(abundance), axes = FALSE, xlab = "fry", ylab = "parr", main = "Fry vs Parr abundance")
+axis(1, at = 0:6, labels = round(exp(0:6), 1))
+axis(2, at = 0:6, labels = round(exp(0:6), 1))
+@
+
+
+
+
+% ------------------------------------------------------------------------------
+%
+%
+%
+% ------------------------------------------------------------------------------
+
+%\section{An analysis of simulated data}
 
 <<simulation_settings, echo=FALSE>>=
 n <- 30
@@ -266,21 +404,22 @@ R <- Rs %x% Rl
 D <- sig*R
 @
 
-Simulation scheme is as follows. \Sexpr{n} electrofishing samples are simulated, in order to make things interesting it is assmumed that salmon and trout are often found together while parr inhibit fry, so that
-\begin{align}
-  \bm{D} = \sigma^2 \bm{R} = \sigma^2 \big( \bm{R}_\text{species} \otimes \bm{R}_\text{life-stage} \big)
-\end{align}
-where the $\bm{R}$ matrixes are 2x2 correlation matrices with a correlation of \Sexpr{rs} between species and \Sexpr{rl} between lifestages resulting in
-\begin{align}
-  \bm{R} =
-    \begin{bmatrix}
-      1.0 & -0.8 &  0.5 & -0.4 \\
-     -0.8 &  1.0 & -0.4 &  0.5 \\
-      0.5 & -0.4 &  1.0 & -0.8 \\
-     -0.4 &  0.5 & -0.8 &  1.0
-    \end{bmatrix}
-\end{align}
-Simulated densities for each fish type are shown below, each has a mean of 40 fish per metre square and a CV of around 10\%
+%Simulation scheme is as follows. \Sexpr{n} electrofishing samples are simulated, in order to make things interesting it is assmumed that salmon and trout are often found together while parr inhibit fry, so that
+%\begin{align}
+%  \bm{D} = \sigma^2 \bm{R} = \sigma^2 \big( \bm{R}_\text{species} \otimes \bm{R}_\text{life-stage} \big)
+%\end{align}
+%where the $\bm{R}$ matrixes are 2x2 correlation matrices with a correlation of \Sexpr{rs} between species and \Sexpr{rl} between lifestages resulting in
+%\begin{align}
+%  \bm{R} =
+%    \begin{bmatrix}
+%      1.0 & -0.8 &  0.5 & -0.4 \\
+%     -0.8 &  1.0 & -0.4 &  0.5 \\
+%      0.5 & -0.4 &  1.0 & -0.8 \\
+%     -0.4 &  0.5 & -0.8 &  1.0
+%    \end{bmatrix}
+%\end{align}
+%Simulated densities for each fish type are shown below, each has a mean of 40 fish per metre square and a CV of around 10\%
+
 <<simulation_nu, echo=FALSE>>=
 set.seed(235987)
 numat <- MASS::mvrnorm(n, alpha, D)
@@ -291,7 +430,7 @@ ndata <- expand.grid(lifestage = c("fry", "parr"),
 ndata $ nu <- exp(c(numat))
 @
 
-<<simulation_nu_plot, echo=FALSE>>=
+<<simulation_nu_plot, echo=FALSE, eval = FALSE>>=
 plot(as.data.frame(exp(numat)))
 @
 
@@ -320,26 +459,26 @@ pdata $ y <- rpois(nrow(pdata), pdata$pi * pdata$nu)
 ndata $ y <- colSums(matrix(pdata $ y, 3))
 @
 
-having simulated some data we can fit a capture probability model
+%having simulated some data we can fit a capture probability model
 
-<<fitting_p, message=FALSE, eval = FALSE>>=
+<<fitting_p, message=FALSE, eval = FALSE, echo=FALSE>>=
 pmod <- efp(y ~ lifestage + species, pass = pass, id = id,
             data = pdata)
 @
 
-And now we can fit a density model to each sample
+%And now we can fit a density model to each sample
 
 
-<<fitting_nu, eval = FALSE>>=
+<<fitting_nu, eval = FALSE, echo=FALSE>>=
 pmat <- matrix(fitted(pmod, type = "p"), 3)
 ndata $ pi <- 1 - (1-pmat[1,])*(1-pmat[1,])*(1-pmat[3,])
 nmod <- glm(y ~ lifestage:species:factor(sample)-1, family = poisson,
             data = ndata, offset = log(ndata$pi))
 @
 
-Now we can calculate $R_i$ for each $\nu_i$. $R_i$ is the total error in estimating $\nu_i$, one way to get this is via bootstrapping
+%Now we can calculate $R_i$ for each $\nu_i$. $R_i$ is the total error in estimating $\nu_i$, one way to get this is via bootstrapping
 
-<<boot_nu, cache=TRUE, message=FALSE, eval = FALSE>>=
+<<boot_nu, cache=TRUE, message=FALSE, eval = FALSE, echo=FALSE>>=
 do.one.boot <- function(...) {
   bsamp <- sample(unique(ndata$sample),
                   length(unique(ndata$sample)),
@@ -379,9 +518,9 @@ unname(vcov(nmod)[1:4,1:4])
 @
 
 
-another way to get this is via MCMC sampling
+%another way to get this is via MCMC sampling
 
-<<mcmc_nu, cache=TRUE, message=FALSE, eval = FALSE>>=
+<<mcmc_nu, cache=TRUE, message=FALSE, eval = FALSE, echo=FALSE>>=
 samp <- simulate(pmod, nsim = 1000)
 library(rstan)
 sim <- extract(samp)$piT
@@ -397,10 +536,19 @@ unname(vcov(nmod)[1:4,1:4])
 @
 
 
-And then estimate $D$!
+%And then estimate $D$!
 
 
-Then finally re-estmimate nu and get appropriate confidence intervals!
+%Then finally re-estmimate nu and get appropriate confidence intervals!
+
+
+
+
+
+
+
+
+
 
 % ------------------------------------------------------------------------------
 %
@@ -408,9 +556,9 @@ Then finally re-estmimate nu and get appropriate confidence intervals!
 %
 % ------------------------------------------------------------------------------
 
-\section{Modelling abundance accross Scotland}
+%\section{Modelling abundance accross Scotland}
 
-Here we extend the model to incorporate covariates.  So the task here is to fit suitable complex models to each species-lifestage, then fit a sample-wise model with the predictions from the complex models as offsets. THen estimate $D$ from these.
+%Here we extend the model to incorporate covariates.  So the task here is to fit suitable complex models to each species-lifestage, then fit a sample-wise model with the predictions from the complex models as offsets. THen estimate $D$ from these.
 
 
 
